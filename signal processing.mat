@@ -1,0 +1,214 @@
+% Sync tone  file 
+% in this file, the data is read from a CSV file
+S = readtable('******.csv'); 
+
+% Distance between sync tone source and each node 
+m1T = ; 
+m2T = ; 
+m3T = ; 
+
+% Samples file to read from 
+T = readtable('******.csv'); 
+
+% ACTUAL Ls 
+m1s = ; 
+m2s = ; 
+
+% speed of sound 
+c = 343; 
+
+% m1 (x,y) 
+x1 = ; 
+y1 = ; 
+
+% m2 (x,y) 
+x2 = ; 
+y2 = ; 
+
+% m3 (x,y)
+x3 = ; 
+y3 = ; 
+
+%SAMPLING FREQUENCY 
+Fs = 8000; 
+Ts = 1/Fs; 
+
+% SEPARATION 
+L_12 = x2 - x1; 
+L_13 = x3 - x1; 
+L_23 = x3 - x2; 
+
+%Signal specifications: 
+m1 = table2array(T(:,1)); 
+t1 = table2array(T(:,2)); 
+m2 = table2array(T(:,3)); 
+t2 = table2array(T(:,4)); 
+m3 = table2array(T(:,5)); 
+t3 = table2array(T(:,6)); 
+
+%to remove bias 
+m1 = m1 - mean(m1); 
+m2 = m2 - mean(m2); 
+m3 = m3 - mean(m3); 
+
+% Synching 
+[ shift_12, shift_23] = Sync( S, m1T, m2T, m3T, x1, x2, x3, Fs, c); 
+
+% m1 and m2 cross-correlation 
+maxlag_12 = floor(L_12*Fs/c); 
+m12shft = circshift(m2,shift_12); 
+
+[xc_12,lags_12] = xcorr(m1,m12shft,maxlag_12,'normalized'); 
+[~,I_12] = max(abs(xc_12)); 
+
+% m2 and m3 cross-correlation 
+maxlag_23 = floor(L_23*Fs/c); 
+m23shft = circshift(m3,shift_23); 
+[xc_23,lags_23] = xcorr(m2,m23shft,maxlag_23,'normalized'); 
+[~,I_23] = max(abs(xc_23));
+
+
+% Multilateration
+TDoA_12 = lags_12(I_12)*Ts; 
+TDoA_23 = lags_23(I_23)*Ts; 
+
+dL_12 = c*TDoA_12; 
+dL_23 = c*TDoA_23; 
+
+% Calculated x and y of the acoustic source 
+[xs, ys1, ys2] = multilaterate(x2,dL_12, dL_23, L_13); 
+
+% Actual x and y of the acoustic source to calculate error 
+[xA,yA] = actual_X_Y(x1,x2,y1,y2,m1s,m2s) 
+
+% Write data to a CSV file 
+% dataLog = vpa([abs(L_13),xs,abs(ys1),xA,yA,dL_12,dL_23,Fs]) 
+
+% Figures and plots
+
+% The cross correlation between microphone 1 (m1) and m2
+figure(1); 
+stem(lags_12,xc_12,'filled') 
+hold on 
+stem(lags_12(I_12),xc_12(I_12),'filled') 
+title("Cross-correlation m_{1} & m_{2}") 
+xline(0); 
+hold off 
+ylabel("Normalised Correlation Coeffecient") 
+axis tight; xlabel('Sample Number'); 
+legend(["Cross-correlation m_{1} & m_{2}",sprintf('Maximum at lag %d',lags_12(I_12))]) 
+grid on 
+
+% The cross correlation between microphone 1 (m2) and m3
+figure(2); 
+stem(lags_23,xc_23,'filled') 
+hold on 
+stem(lags_23(I_23),xc_23(I_23),'filled') 
+title("Cross-correlation m_{2} & m_{3}") 
+xline(0); 
+hold off 
+ylabel("Normalised Correlation Coeffecient") 
+axis tight; 
+xlabel('Sample Number'); 
+legend(["Cross-correlation m_{2} & m_{3}",sprintf('Maximum at lag %d',lags_23(I_23))]) 
+grid on
+
+% The shifted (synced) signals
+figure(3); 
+subplot(3,1,1); 
+plot(t1 - min(t1),m1); 
+ylabel("Amplitude") 
+title("m_{1}") 
+axis tight; 
+xlabel('Time (us)'); 
+yline(0); 
+grid on 
+
+subplot(3,1,2); 
+plot(t2 - min(t2),m12shft); 
+ylabel("Amplitude") 
+title("Shifted m_{2}") 
+axis tight; 
+xlabel('Time (us)'); 
+yline(0); 
+grid on; 
+
+subplot(3,1,3); 
+plot(t3 - min(t3),m23shft); 
+ylabel("Amplitude") 
+title("Shifted m_{3}") 
+axis tight; 
+xlabel('Time (us)'); 
+yline(0); 
+grid on;
+
+sgtitle('m_{1}, m_{2} and m_{3} Synced Signals') 
+
+% the recorded signals
+figure(4); 
+subplot(3,1,1); 
+plot(t1 - min(t1),m1); 
+ylabel("Amplitude") 
+title("m_{1}") 
+axis tight; 
+xlabel('Time (us)'); 
+yline(0); 
+grid on 
+
+subplot(3,1,2); 
+plot(t2 - min(t2),m2); 
+ylabel("Amplitude") 
+title("m_{2}") 
+axis tight; 
+xlabel('Time (us)'); 
+yline(0); 
+grid on; 
+
+subplot(3,1,3);
+plot(t3 - min(t3),m3); 
+ylabel("Amplitude") 
+title("m_{3}") 
+axis tight; 
+xlabel('Time (us)'); 
+yline(0); 
+grid on; 
+
+sgtitle('m_{1}, m_{2} and m_{3} Recorded Signals')
+
+
+% helper functions
+function [ xA, yA] = actual_X_Y( x1, x2, y1, y2, m1s, m2s) 
+    syms xsA ysA 
+
+    Eqns = [ sqrt((x2-xsA)^2+(y2-ysA)^2) == m2s , sqrt((xsA-x1)^2+(ysA-y1)^2) == m1s]; 
+    [ xA, yA] = solve( Eqns, xsA, ysA); 
+    yA = abs(vpa(yA)); 
+
+    yA = yA(1); 
+    xA = abs(vpa(xA)); 
+    xA = xA(1);
+end
+
+function [xs, ys1, ys2] = multilaterate(x2,dL_12, dL_23, L_13) 
+    signdet = dL_12 * dL_23; 
+
+    x1half = (-2*(dL_12^2)*(dL_23^2)*L_13 + 2*(L_13^2)*x2*((dL_12^2)-(dL_23^2))... 
+        + (L_13^3)*((dL_12^2)+(dL_23^2)))/(2*(L_13^2)*((dL_12^2)-(dL_23^2))); 
+
+    x2half = sqrt((dL_12^2)*(dL_23^2)*(L_13^2)*((dL_12^2) +(dL_23^2) - ... 
+        2*(L_13^2))^2)/(2*(L_13^2)*((dL_12^2)-(dL_23^2))); 
+    
+    if signdet >= 0 
+        xs = x1half + x2half 
+    end 
+
+    if signdet < 0 
+        xs = x1half - x2half 
+    end
+
+    xp = xs - x2 + (L_13/2); 
+    xn = xs - x2 - (L_13/2); 
+
+    ys1 = 0.5 * sqrt((((4*xp^2) - (dL_12^2))*((L_13^2)-(dL_12^2)) )/(dL_12^2)) 
+    ys2 = 0.5 * sqrt((((4*xn^2) - (dL_23^2))*((L_13^2)-(dL_23^2)) )/(dL_23^2)) 
+end
