@@ -2,10 +2,10 @@
 
 This project uses 3 microphones to locate sound-emitting objects in 2D.
 As seen below, the sound source recorded by 2 microphones can lie on any point on a hyperbola that represents time-difference-of-arrival (TDoA) between them.
-<img width="222" alt="image" src="https://github.com/MA12CO/Multilateration-of-acoustic-sources/assets/41839731/29a3df4b-4d35-41d8-a09e-b2f57f79e38e">
+![image](https://github.com/MA12CO/Multilateration-of-acoustic-sources/assets/41839731/25025e6e-8800-424d-861d-5a7022db033b)
 
 using 3 microphones create 2 hyperbolae that ideally intersect in the acoustic source location:
-![noise periodic corr](https://github.com/MA12CO/Multilateration-of-acoustic-sources/assets/41839731/1c4e6011-b236-4134-8903-edb2931b1ccf)
+![image](https://github.com/MA12CO/Multilateration-of-acoustic-sources/assets/41839731/7783fa29-cbe3-4612-a54e-dbf34cc473b5)
 
 I used 3 Adafruit™ MAX9814 electret microphone amplifiers attached to 3 ESP8266 development boards to create the microphone array. 
 The nodes analyse sounds and once the wanted frequency is detected (using FFT). The nodes send their recorded sound signals to the PC to be processed via UDP protocol.
